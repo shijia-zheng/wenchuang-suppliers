@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>文创品供应商管理系统</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<!-- ==================== Header ==================== -->
+<header class="header">
+  <div class="header-left">
+    <div class="header-logo">🎨</div>
+    <h1>文创品供应商管理系统</h1>
+    <span id="modeStatus"></span>
+  </div>
+  <div class="header-right">
+    <button class="btn btn-primary btn-sm" onclick="openAddModal()">＋ 新增供应商</button>
+  </div>
+</header>
+
+<!-- ==================== Main Layout ==================== -->
+<div class="main-layout">
+
+  <!-- ===== Sidebar ===== -->
+  <aside class="sidebar" id="sidebar">
+
+    <input type="text" class="sidebar-search" placeholder="🔍 搜索供应商..." id="searchInput" oninput="applyFilters()">
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">📂 供应商分类</div>
+      <div id="treeContainer"></div>
+    </div>
+
+    <hr class="sidebar-divider">
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">🏷 材质筛选 <span style="font-weight:400;font-size:10px;cursor:pointer;margin-left:auto" onclick="AppState.selectedMaterials=[];renderFilterChips();refreshView();updateFooter()">清除</span></div>
+      <div class="filter-chips" id="materialChips"></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">🔧 工艺筛选 <span style="font-weight:400;font-size:10px;cursor:pointer;margin-left:auto" onclick="AppState.selectedCrafts=[];renderFilterChips();refreshView();updateFooter()">清除</span></div>
+      <div class="filter-chips" id="craftChips"></div>
+    </div>
+
+    <hr class="sidebar-divider">
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">📍 所在地 <span style="font-weight:400;font-size:10px;cursor:pointer;margin-left:auto" onclick="AppState.selectedLocation=\'\';renderFilterChips();refreshView();updateFooter()">清除</span></div>
+      <div class="filter-chips" id="locationChips"></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">🎨 定制能力 <span style="font-weight:400;font-size:10px;cursor:pointer;margin-left:auto" onclick="AppState.selectedCustomization=[];renderFilterChips();refreshView();updateFooter()">清除</span></div>
+      <div class="filter-chips" id="customizationChips"></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-section-title">📦 服务水平 <span style="font-weight:400;font-size:10px;cursor:pointer;margin-left:auto" onclick="AppState.selectedService=[];renderFilterChips();refreshView();updateFooter()">清除</span></div>
+      <div class="filter-chips" id="serviceChips"></div>
+    </div>
+
+    <hr class="sidebar-divider">
+
+    <div class="sidebar-actions">
+      <button class="sidebar-action primary" onclick="openSettingsModal()">⚙️ 管理分类 / 材质 / 工艺</button>
+      <button class="sidebar-action" onclick="exportData()">📥 导出 JSON 备份</button>
+      <button class="sidebar-action" onclick="document.getElementById('importFile').click()">📤 导入 JSON 数据</button>
+      <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+      <button class="sidebar-action danger" onclick="resetAllData()">🗑️ 清空所有数据</button>
+    </div>
+  </aside>
+
+  <!-- ===== Content Area ===== -->
+  <div class="content-area">
+
+    <!-- View Tabs -->
+    <div class="view-tabs">
+      <div class="view-tab active" data-view="card" onclick="switchView('card')">🎴 卡片视图</div>
+      <div class="view-tab" data-view="table" onclick="switchView('table')">📋 表格视图</div>
+      <div class="view-tab" data-view="kanban" onclick="switchView('kanban')">📌 看板视图</div>
+      <span style="margin-left:auto;font-size:11px;color:var(--text-muted);padding:8px" id="resultCount"></span>
+    </div>
+
+    <!-- Card View -->
+    <div class="view-content" id="viewCard">
+      <div class="card-grid" id="cardGrid"></div>
+    </div>
+
+    <!-- Table View -->
+    <div class="view-content" id="viewTable" style="display:none">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th style="width:44px"></th>
+            <th onclick="setSort('name')">供应商名称 <span class="sort-arrow" id="sortArrow-name"></span></th>
+            <th onclick="setSort('category')">所属分类 <span class="sort-arrow" id="sortArrow-category"></span></th>
+            <th>材质</th>
+            <th>工艺</th>
+            <th onclick="setSort('rating')">评级 <span class="sort-arrow" id="sortArrow-rating"></span></th>
+            <th>联系人</th>
+            <th style="width:100px">操作</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Kanban View -->
+    <div class="view-content" id="viewKanban" style="display:none">
+      <div class="kanban-board" id="kanbanBoard"></div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer-bar">
+      <span id="footerInfo">共 0 条记录</span>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Settings Modal ==================== -->
+<div class="settings-overlay" id="settingsOverlay" style="display:none" onclick="if(event.target===this)closeSettingsModal()">
+  <div class="settings-modal">
+    <div class="settings-header">
+      <h3>⚙️ 分类体系管理</h3>
+      <button class="settings-close" onclick="closeSettingsModal()">✕</button>
+    </div>
+    <div class="settings-tabs">
+      <button class="settings-tab active" data-stab="categories" onclick="switchSettingsTab('categories')">📂 分类</button>
+      <button class="settings-tab" data-stab="materials" onclick="switchSettingsTab('materials')">🏷 材质</button>
+      <button class="settings-tab" data-stab="crafts" onclick="switchSettingsTab('crafts')">🔧 工艺</button>
+      <button class="settings-tab" data-stab="customizationTags" onclick="switchSettingsTab('customizationTags')">🎨 定制</button>
+      <button class="settings-tab" data-stab="serviceTags" onclick="switchSettingsTab('serviceTags')">📦 服务</button>
+    </div>
+    <div class="settings-body" id="settingsBody"></div>
+  </div>
+</div>
+
+<!-- ==================== Add/Edit Modal ==================== -->
+<div class="modal-overlay" id="modalOverlay" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <h3 id="modalTitle">✏️ 新增供应商</h3>
+    <input type="hidden" id="editId">
+    <div class="form-group">
+      <label>供应商名称 *</label>
+      <input type="text" id="formName" placeholder="请输入供应商名称">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>一级分类 *</label>
+        <select id="formCat1" onchange="updateCat2()"><option value="">请选择</option></select>
+      </div>
+      <div class="form-group">
+        <label>二级分类</label>
+        <select id="formCat2"><option value="">请选择</option></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>材质标签（可多选）</label>
+      <div class="tag-select" id="formMaterials"></div>
+    </div>
+    <div class="form-group">
+      <label>工艺标签（可多选）</label>
+      <div class="tag-select" id="formCrafts"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>联系人</label>
+        <input type="text" id="formContact" placeholder="姓名/电话">
+      </div>
+      <div class="form-group">
+        <label>评级</label>
+        <select id="formRating">
+          <option value="5" selected>⭐⭐⭐⭐⭐</option>
+          <option value="4">⭐⭐⭐⭐</option>
+          <option value="3">⭐⭐⭐</option>
+          <option value="2">⭐⭐</option>
+          <option value="1">⭐</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row form-row-3">
+      <div class="form-group">
+        <label>起订量</label>
+        <input type="text" id="formMoq" placeholder="例：100件起">
+      </div>
+      <div class="form-group">
+        <label>单价</label>
+        <input type="text" id="formUnitPrice" placeholder="例：¥5-20">
+      </div>
+      <div class="form-group">
+        <label>工期</label>
+        <input type="text" id="formLeadTime" placeholder="例：7-15天">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>所在地</label>
+        <input type="text" id="formLocation" placeholder="例：杭州">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>定制能力（可多选）</label>
+      <div class="tag-select" id="formCustomization"></div>
+    </div>
+    <div class="form-group">
+      <label>服务水平（可多选）</label>
+      <div class="tag-select" id="formServiceLevel"></div>
+    </div>
+    <div class="form-group">
+      <label>产品图片 <small style="font-weight:400;color:var(--text-muted)">— 本地路径或网络链接（多张用逗号分隔）</small></label>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="formImageUrl" placeholder="例：产品图片/a.jpg, 产品图片/b.jpg  或  https://..." style="flex:1">
+        <button type="button" class="btn btn-sm btn-outline" onclick="pickLocalImage()">📁 选择本地图片</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>备注</label>
+      <textarea id="formNote" placeholder="补充说明、地址、合作历史等..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary" onclick="saveSupplier()">💾 保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Gallery ==================== -->
+<div class="gallery-overlay" id="galleryOverlay" style="display:none" onclick="if(event.target===this)closeGallery()">
+  <div class="gallery-modal">
+    <div class="gallery-header">
+      <h3 id="galleryTitle">🖼️ 产品图片</h3>
+      <button class="gallery-close" onclick="closeGallery()">✕</button>
+    </div>
+    <div class="gallery-body"><div class="gallery-grid" id="galleryGrid"><div class="gallery-loading">加载中...</div></div></div>
+    <div class="gallery-upload">
+      <select id="galleryImageType"><option value="成品图">成品图</option><option value="效果图">效果图</option><option value="包装图">包装图</option><option value="其他">其他</option></select>
+      <div class="drop-zone" id="dropZone"><span class="dz-icon">📁</span>拖拽图片到此处，或点击上传</div>
+      <input type="file" id="galleryFileInput" accept="image/*" multiple style="display:none" onchange="handleGalleryUpload(this.files);this.value=''">
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Lightbox ==================== -->
+<div class="lightbox" id="lightbox" style="display:none" onclick="if(event.target===this)closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <button class="lightbox-nav prev" id="lightboxPrev" onclick="event.stopPropagation();lightboxPrev()">◀</button>
+  <img src="" id="lightboxImg" alt="预览">
+  <button class="lightbox-nav next" id="lightboxNext" onclick="event.stopPropagation();lightboxNext()">▶</button>
+  <div class="lightbox-info" id="lightboxInfo"></div>
+</div>
+
+<!-- ==================== Delete Confirm ==================== -->
+<div class="confirm-overlay" id="confirmOverlay" style="display:none">
+  <div class="confirm-box">
+    <h3>⚠️ 确认删除</h3>
+    <p>确定要删除供应商：</p>
+    <p class="name" id="confirmName"></p>
+    <p style="font-size:11px;color:var(--accent-red);margin-top:6px">此操作不可恢复</p>
+    <div class="actions">
+      <button class="btn" onclick="closeConfirm()">取消</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">确认删除</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== Scripts ==================== -->
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/supabase.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
