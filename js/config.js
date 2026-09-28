@@ -3,8 +3,8 @@
  * Supabase 信息填入 Settings → API 的 Project URL 和 anon public key
  */
 
-var SUPABASE_URL = 'https://aztrhqmeetwmqjjvyrzs.supabase.co';
-var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF6dHJocW1lZXR3bXFqanZ5cnpzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MDM4MTYsImV4cCI6MjA5ODM3OTgxNn0.HG5nSqfpejFJGtAtvTZU2H5If7ou0mG8LnaWkMk0_so';
+var SUPABASE_URL = 'https://strmjpcqmdswcrktjqzm.supabase.co';
+var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN0cm1qcGNxbWRzd2Nya3RqcXptIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3MDc4MDksImV4cCI6MjA5ODI4MzgwOX0.krlje-LRbH01lrDuMEBYB9pTLDwcb_tVdDrtJxeUEzk';
 
 function isSupabaseEnabled() { return !!(SUPABASE_URL && SUPABASE_ANON_KEY); }
 

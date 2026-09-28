@@ -87,6 +87,10 @@ CREATE POLICY "Allow all UPDATE" ON supplier_images FOR UPDATE USING (true);
 DROP POLICY IF EXISTS "Allow all DELETE" ON supplier_images;
 CREATE POLICY "Allow all DELETE" ON supplier_images FOR DELETE USING (true);
 
+-- ---------- 表级授权（新版 Supabase 新建表不会自动授权给 anon）----------
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.suppliers TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.supplier_images TO anon, authenticated;
+
 -- ---------- 插入示例数据 ----------
 INSERT INTO suppliers (id, name, cat1, cat2, materials, crafts, contact, rating, note) VALUES
   ('a0000000-0000-0000-0000-000000000001', '艺创文化用品有限公司', 'net', 'net-general', '["纸质","木质"]', '["烫金","UV印刷"]', '张经理 138****6789', 5, '淘宝金牌卖家，起订量低，适合小批量定制'),
@@ -102,29 +106,24 @@ INSERT INTO suppliers (id, name, cat1, cat2, materials, crafts, contact, rating,
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
--- Storage Bucket 配置（需在 Supabase Dashboard → Storage 手动操作）
+-- Storage Bucket（与 wenchuang-manager 共用 product-images 桶）
+-- 公开桶，匿名可读写
 -- ============================================================
--- 1. 进入 Storage 页面
--- 2. 点击 "New Bucket"
--- 3. Name: product-images
--- 4. ✅ Public bucket（勾选，这样图片 URL 可以直接访问）
--- 5. 创建后在 bucket 的 Policies 页面添加以下策略：
+INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+VALUES (
+    'product-images',
+    'product-images',
+    TRUE,
+    10485760,  -- 10MB
+    ARRAY['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+)
+ON CONFLICT (id) DO NOTHING;
 
--- Policy for SELECT (read):
---   Name: Allow public read
---   Allowed operation: SELECT
---   Policy definition: true  (或留空 = 允许所有人)
-
--- Policy for INSERT (upload):
---   Name: Allow public upload
---   Allowed operation: INSERT
---   Policy definition: true
-
--- Policy for DELETE:
---   Name: Allow public delete
---   Allowed operation: DELETE
---   Policy definition: true
-
--- 或者直接执行以下 SQL（部分 Supabase 实例支持）:
--- INSERT INTO storage.buckets (id, name, public) VALUES ('product-images', 'product-images', true)
--- ON CONFLICT (id) DO NOTHING;
+CREATE POLICY IF NOT EXISTS "Public read product-images" ON storage.objects
+    FOR SELECT USING (bucket_id = 'product-images');
+CREATE POLICY IF NOT EXISTS "Anon insert product-images" ON storage.objects
+    FOR INSERT TO anon WITH CHECK (bucket_id = 'product-images');
+CREATE POLICY IF NOT EXISTS "Anon update product-images" ON storage.objects
+    FOR UPDATE TO anon USING (bucket_id = 'product-images');
+CREATE POLICY IF NOT EXISTS "Anon delete product-images" ON storage.objects
+    FOR DELETE TO anon USING (bucket_id = 'product-images');
